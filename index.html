@@ -751,7 +751,7 @@ function renderStats(){
   const entries=Object.entries(byStore).sort((a,b)=>b[1]-a[1]);
   const grand=Object.values(byStore).reduce((a,v)=>a+v,0);
   document.getElementById('d-pct').textContent='$'+Math.round(grand);
-  document.getElementById('d-lbl').textContent='total');
+  document.getElementById('d-lbl').textContent='total';
   const colors=['#00E5A0','#4D9EFF','#FF8C42','#A78BFA','#FF5C5C'];
   document.getElementById('cat-list').innerHTML=entries.map((([store,total],i)=>`<div class="catitm"><div class="catdot" style="background:${colors[i%colors.length]}"></div><div class="catinf"><div class="catname">${store}</div><div class="catpct">${Math.round((total/grand)*100)}% · $${total.toFixed(0)}</div><div class="catbg"><div class="catfill" style="width:${Math.round((total/grand)*100)}%;background:${colors[i%colors.length]}"></div></div></div></div>`)).join('');
   const avg=(grand/purchases.length).toFixed(2);
