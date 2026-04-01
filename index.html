@@ -11,6 +11,7 @@
 <title>SuperMarket Calc</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#0A0A0F;--bg2:#111118;--bg3:#1A1A24;--bg4:#22222F;--card:#16161F;--card2:#1E1E2A;--accent:#00E5A0;--accent2:#00B87A;--accent-dim:rgba(0,229,160,0.12);--blue:#4D9EFF;--blue-dim:rgba(77,158,255,0.12);--orange:#FF8C42;--orange-dim:rgba(255,140,66,0.12);--purple:#A78BFA;--purple-dim:rgba(167,139,250,0.12);--red:#FF5C5C;--red-dim:rgba(255,92,92,0.12);--text:#F0F0F8;--text2:#8888A0;--text3:#444458;--border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);--font:'Sora',sans-serif;--mono:'JetBrains Mono',monospace;--r:16px;--r2:12px;--r3:8px;--safe-bottom:env(safe-area-inset-bottom,0px);}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -241,6 +242,24 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .add-store-inp{flex:1;background:var(--bg3);border:1.5px solid var(--border2);border-radius:var(--r2);padding:13px 16px;font-size:15px;color:var(--text);font-family:var(--font);outline:none;transition:border-color .2s;}
 .add-store-inp:focus{border-color:var(--accent);}
 .add-store-inp::placeholder{color:var(--text3);}
+/* EXPORT PANEL */
+.export-panel{margin:0 16px 16px;background:linear-gradient(135deg,rgba(0,229,160,.08),rgba(77,158,255,.06));border:1px solid rgba(0,229,160,.2);border-radius:var(--r);padding:18px;}
+.export-title{font-size:15px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.export-sub{font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5;}
+.export-periods{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.exp-opt{padding:11px 12px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--r2);text-align:center;cursor:pointer;transition:all .2s;user-select:none;}
+.exp-opt.on{background:var(--accent-dim);border-color:rgba(0,229,160,.4);}
+.exp-opt .eo-label{font-size:13px;font-weight:600;margin-bottom:2px;}
+.exp-opt .eo-sub{font-size:11px;color:var(--text2);}
+.exp-opt.on .eo-label{color:var(--accent);}
+.exp-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#000;border:none;border-radius:var(--r2);padding:14px;width:100%;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;}
+.exp-btn:active{transform:scale(.97);background:var(--accent2);}
+.exp-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.exp-btn .spinner{border-top-color:#000;}
+.exp-summary{display:flex;gap:8px;margin-bottom:14px;}
+.exp-stat{flex:1;background:var(--bg3);border-radius:var(--r2);padding:10px;text-align:center;}
+.exp-stat-val{font-family:var(--mono);font-size:17px;font-weight:500;color:var(--accent);}
+.exp-stat-lbl{font-size:10px;color:var(--text2);margin-top:2px;}
 /* HISTORIAL */
 .hflt{display:flex;gap:6px;padding:0 16px 14px;overflow-x:auto;}
 .hflt::-webkit-scrollbar{display:none;}
@@ -470,6 +489,34 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <!-- REPORTE -->
 <div id="page-reporte" class="page">
   <div class="header"><div><div class="htitle">Reporte</div><div class="hsub">Análisis de tus hábitos de compra</div></div></div>
+
+  <!-- EXPORT PANEL -->
+  <div class="export-panel">
+    <div class="export-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg>
+      Exportar a Excel
+    </div>
+    <div class="export-sub">Descarga tus compras con detalle completo de productos, precios y totales.</div>
+
+    <div style="font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">Período a exportar</div>
+    <div class="export-periods">
+      <div class="exp-opt on" id="ep-week" onclick="setExpPeriod('week',this)"><div class="eo-label">Esta semana</div><div class="eo-sub">Últimos 7 días</div></div>
+      <div class="exp-opt" id="ep-biweek" onclick="setExpPeriod('biweek',this)"><div class="eo-label">Quincenal</div><div class="eo-sub">Últimos 15 días</div></div>
+      <div class="exp-opt" id="ep-month" onclick="setExpPeriod('month',this)"><div class="eo-label">Este mes</div><div class="eo-sub">Mes en curso</div></div>
+      <div class="exp-opt" id="ep-all" onclick="setExpPeriod('all',this)"><div class="eo-label">Todo</div><div class="eo-sub">Historial completo</div></div>
+    </div>
+
+    <div class="exp-summary" id="exp-summary">
+      <div class="exp-stat"><div class="exp-stat-val" id="exp-ncompras">0</div><div class="exp-stat-lbl">Compras</div></div>
+      <div class="exp-stat"><div class="exp-stat-val" id="exp-nproductos">0</div><div class="exp-stat-lbl">Productos</div></div>
+      <div class="exp-stat"><div class="exp-stat-val" id="exp-total">$0</div><div class="exp-stat-lbl">Total</div></div>
+    </div>
+
+    <button class="exp-btn" id="exp-btn" onclick="exportExcel()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Descargar Excel
+    </button>
+  </div>
   <div class="cbox"><div class="ctitle">Gasto semanal</div><div class="csub">Últimas 4 semanas</div><div class="bchart" id="bar-chart"></div></div>
   <div class="cbox">
     <div class="ctitle">Por supermercado</div><div class="csub">Distribución acumulada</div>
@@ -644,7 +691,7 @@ function navTo(p){
   const nEl=document.getElementById('nv-'+p);if(nEl)nEl.classList.add('on');
   if(p==='dashboard')refreshDash();
   if(p==='historial')renderHist();
-  if(p==='reporte')renderReporte();
+  if(p==='reporte'){renderReporte();updateExpSummary();}
   if(p==='comparador')renderComparador();
   if(p==='calculator')renderStoreRow();
 }
@@ -972,6 +1019,151 @@ function openDetail(id){
   document.getElementById('dmodal').classList.add('on');
 }
 function closeDetailOut(e){if(e.target===document.getElementById('dmodal'))document.getElementById('dmodal').classList.remove('on');}
+
+// EXPORT TO EXCEL
+let expPeriod='week';
+
+function setExpPeriod(p,el){
+  expPeriod=p;
+  document.querySelectorAll('.exp-opt').forEach(o=>o.classList.remove('on'));
+  el.classList.add('on');
+  updateExpSummary();
+}
+
+function getExpData(){
+  const now=new Date();
+  const filters={
+    week: p=>(now-new Date(p.date))<=7*86400000,
+    biweek: p=>(now-new Date(p.date))<=15*86400000,
+    month: p=>{ const d=new Date(p.date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); },
+    all: ()=>true
+  };
+  return [...purchases].filter(filters[expPeriod]||filters.all).sort((a,b)=>new Date(b.date)-new Date(a.date));
+}
+
+function updateExpSummary(){
+  const data=getExpData();
+  const nProd=data.reduce((s,p)=>s+p.items.length,0);
+  const total=data.reduce((s,p)=>s+p.total,0);
+  document.getElementById('exp-ncompras').textContent=data.length;
+  document.getElementById('exp-nproductos').textContent=nProd;
+  document.getElementById('exp-total').textContent='$'+total.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const btn=document.getElementById('exp-btn');
+  btn.disabled=data.length===0;
+  btn.querySelector('svg+text') // no-op
+  btn.childNodes[btn.childNodes.length-1].textContent=data.length>0?' Descargar Excel':'Sin datos para exportar';
+}
+
+function exportExcel(){
+  if(typeof XLSX==='undefined'){toast('Cargando librería, intenta de nuevo','o');return;}
+  const data=getExpData();
+  if(!data.length){toast('No hay compras en este período','o');return;}
+
+  const btn=document.getElementById('exp-btn');
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner"></div>';
+
+  try{
+    const wb=XLSX.utils.book_new();
+    const periodLabels={week:'Semanal',biweek:'Quincenal',month:'Mensual',all:'Completo'};
+    const now=new Date();
+    const dateStr=now.toLocaleDateString('es-MX',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+
+    // ── HOJA 1: Resumen de compras ──────────────────────────────────────
+    const resumenRows=[
+      ['SuperMarket Calc — Reporte de Compras'],
+      ['Período:', periodLabels[expPeriod], '', 'Generado:', fmtF(now.toISOString())],
+      [],
+      ['#','Fecha','Supermercado','Productos','Total ($)','Dentro del presupuesto']
+    ];
+    data.forEach((p,i)=>{
+      resumenRows.push([
+        i+1,
+        fmtF(p.date),
+        p.store,
+        p.items.length,
+        p.total,
+        budget.amount?(p.total<=budget.amount?'✓ Sí':'✗ No'):'Sin presupuesto'
+      ]);
+    });
+    resumenRows.push([]);
+    resumenRows.push(['','','','TOTAL',data.reduce((s,p)=>s+p.total,0),'']);
+
+    const wsResumen=XLSX.utils.aoa_to_sheet(resumenRows);
+
+    // Column widths for Resumen
+    wsResumen['!cols']=[{wch:4},{wch:22},{wch:22},{wch:12},{wch:12},{wch:22}];
+
+    // Style title row (bold, green bg) — basic cell format
+    if(!wsResumen['A1'].s) wsResumen['A1'].s={};
+    wsResumen['A1'].s={font:{bold:true,sz:14},fill:{fgColor:{rgb:'00E5A0'}}};
+    wsResumen['!merges']=[{s:{r:0,c:0},e:{r:0,c:5}}]; // merge title row
+
+    XLSX.utils.book_append_sheet(wb,wsResumen,'Resumen');
+
+    // ── HOJA 2: Detalle de productos ────────────────────────────────────
+    const detalleRows=[
+      ['SuperMarket Calc — Detalle de Productos'],
+      [],
+      ['Fecha','Supermercado','Producto','Cantidad','Precio unitario ($)','Total producto ($)']
+    ];
+    data.forEach(p=>{
+      p.items.forEach(item=>{
+        detalleRows.push([
+          fmtF(p.date),
+          p.store,
+          item.name,
+          item.qty||1,
+          item.unitPrice||item.price,
+          item.price
+        ]);
+      });
+    });
+
+    const wsDetalle=XLSX.utils.aoa_to_sheet(detalleRows);
+    wsDetalle['!cols']=[{wch:22},{wch:20},{wch:28},{wch:10},{wch:20},{wch:20}];
+    wsDetalle['!merges']=[{s:{r:0,c:0},e:{r:0,c:5}}];
+
+    XLSX.utils.book_append_sheet(wb,wsDetalle,'Detalle productos');
+
+    // ── HOJA 3: Por supermercado ─────────────────────────────────────────
+    const byStore={};
+    data.forEach(p=>{
+      if(!byStore[p.store]) byStore[p.store]={compras:0,productos:0,total:0};
+      byStore[p.store].compras++;
+      byStore[p.store].productos+=p.items.length;
+      byStore[p.store].total+=p.total;
+    });
+    const storeRows=[
+      ['SuperMarket Calc — Por Supermercado'],
+      [],
+      ['Supermercado','Compras','Productos','Total gastado ($)','Promedio por visita ($)']
+    ];
+    Object.entries(byStore).sort((a,b)=>b[1].total-a[1].total).forEach(([store,d])=>{
+      storeRows.push([store, d.compras, d.productos, d.total, parseFloat((d.total/d.compras).toFixed(2))]);
+    });
+    storeRows.push([]);
+    storeRows.push(['TOTAL','',data.reduce((s,p)=>s+p.items.length,0),data.reduce((s,p)=>s+p.total,0),'']);
+
+    const wsStore=XLSX.utils.aoa_to_sheet(storeRows);
+    wsStore['!cols']=[{wch:24},{wch:10},{wch:12},{wch:20},{wch:22}];
+    wsStore['!merges']=[{s:{r:0,c:0},e:{r:0,c:4}}];
+
+    XLSX.utils.book_append_sheet(wb,wsStore,'Por supermercado');
+
+    // ── Descargar ────────────────────────────────────────────────────────
+    const filename=`SuperMarketCalc_${periodLabels[expPeriod]}_${dateStr}.xlsx`;
+    XLSX.writeFile(wb,filename);
+    toast('✅ Excel descargado: '+filename,'g');
+
+  }catch(err){
+    console.error(err);
+    toast('Error al generar Excel: '+err.message,'r');
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar Excel`;
+  }
+}
 
 // REPORTE
 function renderReporte(){
