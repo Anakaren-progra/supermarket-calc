@@ -215,6 +215,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .ab-sep{width:1px;height:16px;background:var(--border2);flex-shrink:0;}
 .savebtn{margin:0 16px 10px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--accent-dim);border:1px solid rgba(0,229,160,.25);border-radius:var(--r2);padding:13px;font-size:14px;font-weight:600;color:var(--accent);cursor:pointer;}
 .savebtn:active{background:rgba(0,229,160,.2);}
+/* STORE TAG WITH DELETE */
+.store-tag{display:inline-flex;align-items:center;gap:0;background:var(--bg3);border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--text2);white-space:nowrap;user-select:none;overflow:hidden;transition:all .2s;}
+.store-tag.on{background:var(--accent-dim);border-color:rgba(0,229,160,.3);color:var(--accent);}
+.store-tag-label{padding:5px 10px;cursor:pointer;}
+.store-tag-del{padding:5px 8px 5px 2px;cursor:pointer;opacity:.5;font-size:11px;transition:opacity .15s;display:flex;align-items:center;}
+.store-tag-del:hover{opacity:1;color:var(--red);}
+.store-tag.on .store-tag-del{opacity:.6;}
+.store-add-btn{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--accent);cursor:pointer;white-space:nowrap;transition:all .2s;font-weight:600;}
+.store-add-btn:active{background:var(--accent-dim);}
+/* ADD STORE MODAL */
+.add-store-bar{display:flex;gap:8px;align-items:center;margin-top:4px;}
+.add-store-inp{flex:1;background:var(--bg3);border:1.5px solid var(--border2);border-radius:var(--r2);padding:13px 16px;font-size:15px;color:var(--text);font-family:var(--font);outline:none;transition:border-color .2s;}
+.add-store-inp:focus{border-color:var(--accent);}
+.add-store-inp::placeholder{color:var(--text3);}
 /* HISTORIAL */
 .hflt{display:flex;gap:6px;padding:0 16px 14px;overflow-x:auto;}
 .hflt::-webkit-scrollbar{display:none;}
@@ -401,13 +415,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <!-- CALCULADORA -->
 <div id="page-calculator" class="page">
   <div class="header"><div><div class="htitle">Calculadora</div><div class="hsub">Cantidad × precio unitario</div></div></div>
-  <div class="store-row" id="store-row">
-    <div class="tag on" onclick="setStore(this,'🛒 Walmart')">🛒 Walmart</div>
-    <div class="tag" onclick="setStore(this,'🏪 Chedraui')">🏪 Chedraui</div>
-    <div class="tag" onclick="setStore(this,'🏬 La Comer')">🏬 La Comer</div>
-    <div class="tag" onclick="setStore(this,'🏦 Soriana')">🏦 Soriana</div>
-    <div class="tag" onclick="setStore(this,'🏷️ Otro')">+ Otro</div>
-  </div>
+  <div class="store-row" id="store-row"></div>
   <div class="ctbox">
     <div>
       <div class="ctlbl">Total actual</div>
@@ -496,6 +504,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
 </div>
 
+<!-- ADD STORE MODAL -->
+<div class="overlay" id="smodal" onclick="closeStoreModalOut(event)">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="mtitle">Agregar supermercado</div>
+    <div class="msub">Escribe el nombre del supermercado que quieres agregar a tu lista.</div>
+    <div class="add-store-bar">
+      <input class="add-store-inp" id="new-store-inp" type="text" placeholder="Ej: Costco, Bodega Aurrerá..." maxlength="30" onkeydown="if(event.key==='Enter')confirmAddStore()">
+      <button class="btn btn-p" style="width:auto;padding:13px 20px;flex-shrink:0" onclick="confirmAddStore()">Agregar</button>
+    </div>
+    <div style="margin-top:16px">
+      <div style="font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">Sugerencias</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="qchip" onclick="document.getElementById('new-store-inp').value='🏬 Costco'">🏬 Costco</div>
+        <div class="qchip" onclick="document.getElementById('new-store-inp').value='🛍️ Bodega Aurrerá'">🛍️ Bodega Aurrerá</div>
+        <div class="qchip" onclick="document.getElementById('new-store-inp').value='🏪 S-Mart'">🏪 S-Mart</div>
+        <div class="qchip" onclick="document.getElementById('new-store-inp').value='🏬 Sam\'s Club'">🏬 Sam's Club</div>
+        <div class="qchip" onclick="document.getElementById('new-store-inp').value='🏪 Mercado local'">🏪 Mercado local</div>
+        <div class="qchip" onclick="document.getElementById('new-store-inp').value='🏪 Tianguis'">🏪 Tianguis</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- BUDGET MODAL -->
 <div class="overlay" id="bmodal" onclick="closeBudgetOut(event)">
   <div class="sheet">
@@ -568,6 +600,7 @@ async function init(){
   const bS=localStorage.getItem('smc_budget');if(bS)budget=JSON.parse(bS);
   const pS=localStorage.getItem('smc_purchases');if(pS)purchases=JSON.parse(pS);
   selPeriod=budget.period||'weekly';
+  loadStores();
   const {data:{session}}=await sb.auth.getSession();
   if(session){user=session.user;enterApp();}else showScreen('screen-login');
   sb.auth.onAuthStateChange((_,s)=>{if(s){user=s.user;enterApp();}else{user=null;showScreen('screen-login');document.getElementById('bnav').classList.remove('on');}});
@@ -588,6 +621,7 @@ function navTo(p){
   if(p==='historial')renderHist();
   if(p==='reporte')renderReporte();
   if(p==='comparador')renderComparador();
+  if(p==='calculator')renderStoreRow();
 }
 
 // HELPERS
@@ -644,6 +678,7 @@ function enterApp(){
   document.getElementById('pm-name').textContent=name;
   document.getElementById('pm-email').textContent=user.email;
   if(!budget.amount)setTimeout(openBudget,700);else refreshDash();
+  renderStoreRow();
 }
 
 // MENU
@@ -688,8 +723,89 @@ function renderRecent(){
   el.innerHTML=[...purchases].reverse().slice(0,3).map(p=>`<div class="ritem" onclick="openDetail('${p.id}')"><div class="rico" style="background:var(--accent-dim)">${p.sico||'🛒'}</div><div class="rinfo"><div class="rname">${p.store}</div><div class="rmeta">${p.items.length} productos · ${fmtS(p.date)}</div></div><div class="rrgt"><div class="ramt">$${p.total.toFixed(2)}</div><div class="rdate">${fmtS(p.date)}</div></div></div>`).join('');
 }
 
-// CALCULATOR
-function setStore(el,name){document.querySelectorAll('#store-row .tag').forEach(t=>t.classList.remove('on'));el.classList.add('on');curStore=name;}
+// STORES — dynamic list persisted in localStorage
+const DEFAULT_STORES=['🛒 Walmart','🏪 Chedraui','🏬 La Comer','🏦 Soriana'];
+let stores=[...DEFAULT_STORES];
+
+function loadStores(){
+  const s=localStorage.getItem('smc_stores');
+  if(s) stores=JSON.parse(s);
+  else stores=[...DEFAULT_STORES];
+}
+function saveStores(){localStorage.setItem('smc_stores',JSON.stringify(stores));}
+
+function renderStoreRow(){
+  const row=document.getElementById('store-row');
+  row.innerHTML='';
+  stores.forEach((name,i)=>{
+    const tag=document.createElement('div');
+    tag.className='store-tag'+(i===0&&curStore===name?' on':'')+(curStore===name?' on':'');
+    tag.innerHTML=`<span class="store-tag-label" onclick="selectStoreTag(this,'${name.replace(/'/g,"\\'")}')"> ${name}</span><span class="store-tag-del" onclick="deleteStore(${i},event)" title="Eliminar">✕</span>`;
+    row.appendChild(tag);
+  });
+  // + Add button
+  const addBtn=document.createElement('div');
+  addBtn.className='store-add-btn';
+  addBtn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Agregar`;
+  addBtn.onclick=openStoreModal;
+  row.appendChild(addBtn);
+  // ensure curStore is still valid
+  if(!stores.includes(curStore)&&stores.length>0) curStore=stores[0];
+  // mark active
+  row.querySelectorAll('.store-tag').forEach(t=>{
+    t.classList.toggle('on', t.querySelector('.store-tag-label').textContent.trim()===curStore);
+  });
+}
+
+function selectStoreTag(labelEl, name){
+  curStore=name;
+  document.querySelectorAll('#store-row .store-tag').forEach(t=>{
+    t.classList.toggle('on', t.querySelector('.store-tag-label').textContent.trim()===name);
+  });
+}
+
+function deleteStore(idx, e){
+  e.stopPropagation();
+  if(stores.length<=1){toast('Debes tener al menos un supermercado','o');return;}
+  const name=stores[idx];
+  stores.splice(idx,1);
+  saveStores();
+  if(curStore===name) curStore=stores[0];
+  renderStoreRow();
+  toast('🗑️ '+name+' eliminado','b');
+}
+
+function openStoreModal(){
+  document.getElementById('new-store-inp').value='';
+  document.getElementById('smodal').classList.add('on');
+  setTimeout(()=>document.getElementById('new-store-inp').focus(),300);
+}
+function closeStoreModalOut(e){if(e.target===document.getElementById('smodal'))document.getElementById('smodal').classList.remove('on');}
+function confirmAddStore(){
+  const val=document.getElementById('new-store-inp').value.trim();
+  if(!val){toast('Escribe el nombre del supermercado','o');return;}
+  if(stores.includes(val)){toast('Ese supermercado ya está en la lista','o');return;}
+  stores.push(val);
+  saveStores();
+  curStore=val;
+  document.getElementById('smodal').classList.remove('on');
+  renderStoreRow();
+  toast('✅ '+val+' agregado','g');
+}
+
+function setStore(el,name){ // kept for compatibility
+  selectStoreTag(el,name);
+}
+
+// DELETE PURCHASE FROM HISTORIAL
+function deletePurchase(id){
+  if(!confirm('¿Eliminar esta compra del historial? Esta acción no se puede deshacer.')) return;
+  purchases=purchases.filter(p=>p.id!==id&&p.id!==String(id));
+  localStorage.setItem('smc_purchases',JSON.stringify(purchases));
+  renderHist();
+  refreshDash();
+  toast('🗑️ Compra eliminada del historial','b');
+}
 function previewTotal(){
   const q=parseFloat(document.getElementById('prod-qty').value)||1;
   const p=parseFloat(document.getElementById('prod-price').value)||0;
@@ -754,7 +870,10 @@ function renderHist(){
     <div class="hcard" onclick="openDetail('${p.id}')">
       <div class="hhdr">
         <div class="hstore"><div class="hico" style="background:var(--accent-dim)">${p.sico||'🛒'}</div><div><div class="hname">${p.store}</div><div class="hdate">${fmtF(p.date)} · ${p.items.length} prod.</div></div></div>
-        <div class="hamt">$${p.total.toFixed(2)}<small>${fmtS(p.date)}</small></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <div class="hamt">$${p.total.toFixed(2)}<small>${fmtS(p.date)}</small></div>
+          <div onclick="event.stopPropagation();deletePurchase('${p.id}')" style="display:flex;align-items:center;gap:4px;background:var(--red-dim);border:1px solid rgba(255,92,92,.2);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--red);font-weight:600"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>Eliminar</div>
+        </div>
       </div>
       <div class="hchips">${p.items.slice(0,3).map(i=>`<div class="hchip">${i.emo||'🏷️'} ${i.name}${(i.qty||1)>1?' ×'+i.qty:''} <span style="color:var(--text3);margin-left:3px">$${i.price.toFixed(2)}</span></div>`).join('')}${p.items.length>3?`<div class="hchip">+${p.items.length-3} más</div>`:''}</div>
       <div class="htags"><span class="badge ${p.total<=(budget.amount||9999)?'bg':'br'}">${p.total<=(budget.amount||9999)?'Dentro del presupuesto':'Sobre presupuesto'}</span><span class="htap"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>Ver lista</span></div>
