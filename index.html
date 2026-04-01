@@ -216,14 +216,26 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .savebtn{margin:0 16px 10px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--accent-dim);border:1px solid rgba(0,229,160,.25);border-radius:var(--r2);padding:13px;font-size:14px;font-weight:600;color:var(--accent);cursor:pointer;}
 .savebtn:active{background:rgba(0,229,160,.2);}
 /* STORE TAG WITH DELETE */
-.store-tag{display:inline-flex;align-items:center;gap:0;background:var(--bg3);border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--text2);white-space:nowrap;user-select:none;overflow:hidden;transition:all .2s;}
+.store-tag{display:inline-flex;align-items:center;gap:0;background:var(--bg3);border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--text2);white-space:nowrap;user-select:none;overflow:hidden;transition:all .2s;flex-shrink:0;}
 .store-tag.on{background:var(--accent-dim);border-color:rgba(0,229,160,.3);color:var(--accent);}
-.store-tag-label{padding:5px 10px;cursor:pointer;}
-.store-tag-del{padding:5px 8px 5px 2px;cursor:pointer;opacity:.5;font-size:11px;transition:opacity .15s;display:flex;align-items:center;}
-.store-tag-del:hover{opacity:1;color:var(--red);}
-.store-tag.on .store-tag-del{opacity:.6;}
-.store-add-btn{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--accent);cursor:pointer;white-space:nowrap;transition:all .2s;font-weight:600;}
+.store-tag-label{padding:6px 8px 6px 12px;cursor:pointer;flex-shrink:0;}
+.store-tag-del{width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s;border-left:1px solid var(--border);}
+.store-tag-del:active{background:var(--red-dim);}
+.store-tag-del svg{pointer-events:none;}
+.store-add-btn{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid rgba(0,229,160,.3);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--accent);cursor:pointer;white-space:nowrap;transition:all .2s;font-weight:600;flex-shrink:0;}
 .store-add-btn:active{background:var(--accent-dim);}
+/* CONFIRM DIALOG */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:800;display:none;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);}
+.confirm-overlay.on{display:flex;}
+.confirm-box{background:var(--card2);border:1px solid var(--border2);border-radius:20px;padding:24px;width:100%;max-width:340px;animation:fadeIn .2s ease;}
+.confirm-icon{font-size:36px;text-align:center;margin-bottom:14px;}
+.confirm-title{font-size:16px;font-weight:700;text-align:center;margin-bottom:8px;}
+.confirm-msg{font-size:13px;color:var(--text2);text-align:center;line-height:1.55;margin-bottom:22px;}
+.confirm-btns{display:flex;gap:10px;}
+.confirm-btns button{flex:1;padding:13px;border:none;border-radius:var(--r2);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;}
+.confirm-cancel{background:var(--bg4);color:var(--text);}
+.confirm-ok{background:var(--red);color:#fff;}
+.confirm-ok:active{transform:scale(.97);}
 /* ADD STORE MODAL */
 .add-store-bar{display:flex;gap:8px;align-items:center;margin-top:4px;}
 .add-store-inp{flex:1;background:var(--bg3);border:1.5px solid var(--border2);border-radius:var(--r2);padding:13px 16px;font-size:15px;color:var(--text);font-family:var(--font);outline:none;transition:border-color .2s;}
@@ -578,6 +590,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   <div class="nav-item" id="nv-comparador" onclick="navTo('comparador')"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg></div><span class="nav-label">Comparar</span></div>
 </nav>
 <div class="toast" id="toast"><div class="tdot tg" id="tdot"></div><span id="tmsg"></span></div>
+
+<!-- CUSTOM CONFIRM DIALOG -->
+<div class="confirm-overlay" id="cmodal">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="cmodal-icon">🗑️</div>
+    <div class="confirm-title" id="cmodal-title">¿Eliminar?</div>
+    <div class="confirm-msg" id="cmodal-msg">Esta acción no se puede deshacer.</div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeConfirm()">Cancelar</button>
+      <button class="confirm-ok" id="cmodal-ok" onclick="doConfirm()">Eliminar</button>
+    </div>
+  </div>
+</div>
 </div>
 
 <script>
@@ -739,40 +764,61 @@ function renderStoreRow(){
   row.innerHTML='';
   stores.forEach((name,i)=>{
     const tag=document.createElement('div');
-    tag.className='store-tag'+(i===0&&curStore===name?' on':'')+(curStore===name?' on':'');
-    tag.innerHTML=`<span class="store-tag-label" onclick="selectStoreTag(this,'${name.replace(/'/g,"\\'")}')"> ${name}</span><span class="store-tag-del" onclick="deleteStore(${i},event)" title="Eliminar">✕</span>`;
+    tag.className='store-tag';
+    const lbl=document.createElement('span');
+    lbl.className='store-tag-label';
+    lbl.textContent=name;
+    lbl.onclick=()=>selectStoreByName(name);
+    const del=document.createElement('span');
+    del.className='store-tag-del';
+    del.title='Eliminar supermercado';
+    del.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    del.onclick=(e)=>{e.stopPropagation();askDeleteStore(i,name);};
+    tag.appendChild(lbl);
+    tag.appendChild(del);
     row.appendChild(tag);
   });
-  // + Add button
+  // + Agregar button
   const addBtn=document.createElement('div');
   addBtn.className='store-add-btn';
   addBtn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Agregar`;
   addBtn.onclick=openStoreModal;
   row.appendChild(addBtn);
-  // ensure curStore is still valid
+  // ensure curStore valid, then mark active
   if(!stores.includes(curStore)&&stores.length>0) curStore=stores[0];
-  // mark active
   row.querySelectorAll('.store-tag').forEach(t=>{
     t.classList.toggle('on', t.querySelector('.store-tag-label').textContent.trim()===curStore);
   });
 }
 
-function selectStoreTag(labelEl, name){
+function selectStoreByName(name){
   curStore=name;
   document.querySelectorAll('#store-row .store-tag').forEach(t=>{
     t.classList.toggle('on', t.querySelector('.store-tag-label').textContent.trim()===name);
   });
 }
 
-function deleteStore(idx, e){
-  e.stopPropagation();
+function selectStoreTag(labelEl,name){ selectStoreByName(name); } // compat
+
+function askDeleteStore(idx,name){
   if(stores.length<=1){toast('Debes tener al menos un supermercado','o');return;}
-  const name=stores[idx];
-  stores.splice(idx,1);
-  saveStores();
-  if(curStore===name) curStore=stores[0];
-  renderStoreRow();
-  toast('🗑️ '+name+' eliminado','b');
+  showConfirm(
+    '🏪',
+    'Eliminar supermercado',
+    `¿Eliminar "${name}" de tu lista? Solo se borra de la lista de selección, no afecta el historial.`,
+    ()=>{
+      stores.splice(idx,1);
+      saveStores();
+      if(curStore===name) curStore=stores[0];
+      renderStoreRow();
+      toast('🗑️ '+name+' eliminado','b');
+    }
+  );
+}
+
+function deleteStore(idx,e){ // compat wrapper
+  e&&e.stopPropagation&&e.stopPropagation();
+  askDeleteStore(idx,stores[idx]);
 }
 
 function openStoreModal(){
@@ -797,14 +843,37 @@ function setStore(el,name){ // kept for compatibility
   selectStoreTag(el,name);
 }
 
+// CUSTOM CONFIRM DIALOG
+let _confirmCb=null;
+function showConfirm(icon,title,msg,onOk){
+  _confirmCb=onOk;
+  document.getElementById('cmodal-icon').textContent=icon;
+  document.getElementById('cmodal-title').textContent=title;
+  document.getElementById('cmodal-msg').textContent=msg;
+  document.getElementById('cmodal').classList.add('on');
+}
+function closeConfirm(){
+  document.getElementById('cmodal').classList.remove('on');
+  _confirmCb=null;
+}
+function doConfirm(){
+  const cb=_confirmCb;closeConfirm();if(cb)cb();
+}
+
 // DELETE PURCHASE FROM HISTORIAL
 function deletePurchase(id){
-  if(!confirm('¿Eliminar esta compra del historial? Esta acción no se puede deshacer.')) return;
-  purchases=purchases.filter(p=>p.id!==id&&p.id!==String(id));
-  localStorage.setItem('smc_purchases',JSON.stringify(purchases));
-  renderHist();
-  refreshDash();
-  toast('🗑️ Compra eliminada del historial','b');
+  showConfirm(
+    '🗑️',
+    'Eliminar compra',
+    'Esta compra se borrará del historial de forma permanente.',
+    ()=>{
+      purchases=purchases.filter(p=>String(p.id)!==String(id));
+      localStorage.setItem('smc_purchases',JSON.stringify(purchases));
+      renderHist();
+      refreshDash();
+      toast('🗑️ Compra eliminada','b');
+    }
+  );
 }
 function previewTotal(){
   const q=parseFloat(document.getElementById('prod-qty').value)||1;
